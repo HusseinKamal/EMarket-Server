@@ -43,22 +43,40 @@ fun Route.signUp(
         }
         val areFieldBlank = request.username.isBlank() || request.password.isBlank()
         val isPasswordTooShort = request.password.length < 8
+        val confirmPassword = request.confirmPassword
         if(areFieldBlank || isPasswordTooShort){
-            call.respond(HttpStatusCode.Conflict)
+            call.respond(HttpStatusCode.Conflict,"Password must be more that 8 characters")
+            return@post
+        }
+        if(confirmPassword != request.password){
+            call.respond(HttpStatusCode.Conflict,"Passwords must be identical")
             return@post
         }
         val saltedHash = hashingService.generateSaltedHash(request.password)
         val user = User(
             username = request.username,
             password = saltedHash.hash,
+            phone=request.phone,
+            email=request.email,
             salt = saltedHash.salt,
         )
         val wasAcknowledge = userDataSource.insertUser(user)
         if(!wasAcknowledge){
-            call.respond(HttpStatusCode.Conflict)
+            call.respond(HttpStatusCode.Conflict,"User name is already exists")
             return@post
         }
-
+        //Success
+        val userData = userDataSource.getUserByName(user.email)
+        userData?.let {
+            call.respond(HttpStatusCode.OK, UserResponse(
+                id =userData.id.toString(),
+                username = userData.username,
+                email = userData.email,
+                phone = userData.phone,
+            )
+            )
+            return@post
+        }
         //Success
         call.respond(HttpStatusCode.OK)
     }
@@ -76,7 +94,7 @@ fun Route.singIn(
             return@post
         }
 
-        val user = userDataSource.getUserByName(request.username)
+        val user = userDataSource.getUserByName(request.email)
         if(user == null){
             call.respond(HttpStatusCode.Conflict,"Incorrect username or password1")
             return@post
@@ -105,7 +123,10 @@ fun Route.singIn(
 
         call.respond(HttpStatusCode.OK,
             message = AuthResponse(
-                token = token
+                token = token,
+                username = user.username,
+                email = user.email,
+                phone = user.phone
             )
         )
 

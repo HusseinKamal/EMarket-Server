@@ -12,7 +12,7 @@ class MongoUserDataSource(
         if(users.find().toList().isEmpty()){
             return null
         }
-        return users.findOne(User::username eq username)
+        return users.findOne(User::email eq username)
     }
 
     override suspend fun insertUser(user: User): Boolean {
